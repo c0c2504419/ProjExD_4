@@ -257,6 +257,26 @@ class Gravity(pg.sprite.Sprite):
         self.life -= 1
         if self.life < 0:
             self.kill()
+class Life:
+    """
+    追加機能１：残機数を表示する(3)
+    発動条件：爆弾一つにあたるたびに１つ減る
+    描画位置：画面右下
+    """
+    def __init__(self, life_count: int):
+        self.num =life_count
+        self.font =pg.font.Font(None,50)
+
+        self.image = pg.Surface((40,40))
+        self.image.set_colorkey((0,0,0))
+        points = [(16*math.sin(t/100)**3 +20,
+                   -(13*math.cos(t/100)-5*math.cos(2*t/100)-2*math.cos(3*t/100)-math.cos(4*t/100)) +20
+                   )for t in range(0,628)]
+        pg.draw.polygon(self.image,(255,0,0),points)
+
+    def update(self, screen: pg.Surface):
+        for i in range(self.num):
+            screen.blit(self.image, (WIDTH -50 -i*45, HEIGHT - 50))
 
 class Shield(pg.sprite.Sprite):
     """
@@ -291,6 +311,7 @@ def main():
     screen = pg.display.set_mode((WIDTH, HEIGHT))
     bg_img = pg.image.load(f"fig/pg_bg.jpg")
     score = Score()
+    life = Life(3)
 
     bird = Bird(3, (900, 400))
     bombs = pg.sprite.Group()
@@ -355,6 +376,18 @@ def main():
             exps.add(Explosion(bomb, 50))  # 爆発エフェクト
             score.value += 1  # 1点アップ
 
+        # 衝突判定を一つにまとめる
+        collided_bombs = pg.sprite.spritecollide(bird, bombs, True)
+        if collided_bombs:  # 爆弾が当たった場合
+            life.num -= 1  # 残機を減らす
+            bird.change_img(8, screen) # 悲しみエフェクト
+    
+            if life.num <= 0:  # 0になったらゲームオーバー
+                score.update(screen)
+                pg.display.update()
+                time.sleep(2)
+                return
+            
         for bomb in pg.sprite.spritecollide(bird, bombs, True):  # こうかとんと衝突した爆弾リスト
             bird.change_img(8, screen)  # こうかとん悲しみエフェクト
             score.update(screen)
@@ -381,6 +414,7 @@ def main():
         score.update(screen)
         pg.display.update()  
 
+        life.update(screen)
         shield.update()
         shield.draw(screen)
         pg.display.update()
