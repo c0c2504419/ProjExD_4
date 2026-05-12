@@ -243,7 +243,7 @@ class Score:
     def __init__(self):
         self.font = pg.font.Font(None, 50)
         self.color = (0, 0, 255)
-        self.value = 0
+        self.value = 1000
         self.image = self.font.render(f"Score: {self.value}", 0, self.color)
         self.rect = self.image.get_rect()
         self.rect.center = 100, HEIGHT-50
@@ -328,20 +328,24 @@ class EMP(pg.sprite.Sprite):
         pg.draw.rect(self.image, (255, 255, 0), (0, 0, WIDTH, HEIGHT))
         self.image.set_alpha(128)
         self.rect = self.image.get_rect()
+        self.life = 5
+
+        for enem in emy:
+            enem.image = pg.transform.laplacian(enem.image)#見た目を変える
+            enem.interval = math.inf #爆弾投下のインターバルを無限にする
+        for bmb in obj:
+            bmb.speed = bmb.speed/2 #爆弾を遅くする
+            bmb.state = "inactive" #爆弾を無効化するかの判断基準のための定義
+        screen.blit(self.image, self.rect)#黄色い矩形の表示
+
+        
 
     def update(self, emy:Enemy, obj: Bomb, screen):
         """
         敵機を爆弾が落とせない状態にし、見た目が変わった状態にする
         爆弾の動きを遅くする、当たっても起爆せず消滅するようにする
         """
-        screen.blit(self.image, self.rect)#黄色い矩形の表示
-        pg.display.update()
-        for enem in emy:
-            enem.image = pg.transform.laplacian(enem.image)#見た目を変える
-            enem.interval = math.inf#爆弾投下のインターバルを無限にする
-        for bmb in obj:
-            bmb.speed = bmb.speed/2 #爆弾を遅くする
-            bmb.state = "inactive"#爆弾を無効化するかの判断基準のための定義
+        pass
 
 
 def main():
@@ -377,13 +381,13 @@ def main():
                     shield.add(Shield(bird, 400))  # 発動時間400フレーム
 
             # ↓Shiftキー押下かつスコア１００以上の時、発動
-            if (event.type == pg.KEYDOWN and event.key in (pg.K_LSHIFT, pg.K_RSHIFT) and score.value >= 100):
+            if event.type == pg.KEYDOWN and event.key == pg.K_LSHIFT and score.value >= 100:
                 bird.state = "hyper"
                 bird.hyper_life += 500 # 500フレーム(10秒間)無敵
                 score.value -= 100 # スコア100消費
 
             if event.type == pg.KEYDOWN and event.key == pg.K_e and score.value >=20:
-                emp.update(emys, bombs, screen)
+                emp = EMP(emys, bombs, screen)
                 pg.display.update()
                 time.sleep(0.05)
                 score.value-=20
@@ -431,7 +435,16 @@ def main():
 
         # 衝突判定を一つにまとめる
         collided_bombs = pg.sprite.spritecollide(bird, bombs, True)
-        if collided_bombs:  # 爆弾が当たった場合
+        for bomb in collided_bombs:  # 球が当たった場合
+            if bird.state == "hyper":  
+                exps.add(Explosion(bomb, 50))  # 爆発エフェクト
+                score.value += 1  # 1点アップ
+                continue
+    
+            if bomb.state == "inactive": # EMP中
+                score.value += 1
+                continue
+
             life.num -= 1  # 残機を減らす
             bird.change_img(8, screen) # 悲しみエフェクト
     
@@ -440,18 +453,6 @@ def main():
                 pg.display.update()
                 time.sleep(2)
                 return
-            
-        for bomb in pg.sprite.spritecollide(bird, bombs, True):  # こうかとんと衝突した爆弾リスト
-            if bird.state == "hyper": # 無敵状態
-                exps.add(Explosion(bomb, 50))
-                score.value += 1
-                continue
-            bird.change_img(8, screen)  # 通常状態
-            score.update(screen)
-            pg.display.update()
-            time.sleep(2)
-            return
-        
 
         for bomb in pg.sprite.groupcollide(bombs, shield, True, False):  # 盾と衝突した爆弾リスト
             exps.add(Explosion(bomb, 50))  # 壁に当たったら爆発する
@@ -475,8 +476,7 @@ def main():
         exps.draw(screen)
         grvs.update()
         grvs.draw(screen)
-        score.update(screen)
-        pg.display.update()  
+        score.update(screen) 
 
         life.update(screen)
         shield.update()
