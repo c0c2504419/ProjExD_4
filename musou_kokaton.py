@@ -136,6 +136,7 @@ class Bomb(pg.sprite.Sprite):
         self.rect.centerx = emy.rect.centerx
         self.rect.centery = emy.rect.centery+emy.rect.height//2
         self.speed = 6
+        self.state = ""
 
     def update(self):
         """
@@ -314,6 +315,33 @@ class Shield(pg.sprite.Sprite):
         self.life -= 1
         if self.life < 0:
             self.kill()
+class EMP(pg.sprite.Sprite):
+    """
+    敵機、爆弾を無効化する電磁パルスに関わるクラス
+    """
+    def __init__(self, emy:"Enemy", obj: "Bomb", screen):
+        """
+        黄色い矩形を作る
+        """
+        super().__init__()
+        self.image = pg.Surface((WIDTH, HEIGHT))
+        pg.draw.rect(self.image, (255, 255, 0), (0, 0, WIDTH, HEIGHT))
+        self.image.set_alpha(128)
+        self.rect = self.image.get_rect()
+
+    def update(self, emy:Enemy, obj: Bomb, screen):
+        """
+        敵機を爆弾が落とせない状態にし、見た目が変わった状態にする
+        爆弾の動きを遅くする、当たっても起爆せず消滅するようにする
+        """
+        screen.blit(self.image, self.rect)#黄色い矩形の表示
+        pg.display.update()
+        for enem in emy:
+            enem.image = pg.transform.laplacian(enem.image)#見た目を変える
+            enem.interval = math.inf#爆弾投下のインターバルを無限にする
+        for bmb in obj:
+            bmb.speed = bmb.speed/2 #爆弾を遅くする
+            bmb.state = "inactive"#爆弾を無効化するかの判断基準のための定義
 
 
 def main():
@@ -331,6 +359,8 @@ def main():
     grvs = pg.sprite.Group()
     
     shield = pg.sprite.Group()
+
+    emp = EMP(emys, bombs, screen)
 
     tmr = 0
     clock = pg.time.Clock()
@@ -351,6 +381,13 @@ def main():
                 bird.state = "hyper"
                 bird.hyper_life += 500 # 500フレーム(10秒間)無敵
                 score.value -= 100 # スコア100消費
+
+            if event.type == pg.KEYDOWN and event.key == pg.K_e and score.value >=20:
+                emp.update(emys, bombs, screen)
+                pg.display.update()
+                time.sleep(0.05)
+                score.value-=20
+
         screen.blit(bg_img, [0, 0])
 
         if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
@@ -419,6 +456,13 @@ def main():
         for bomb in pg.sprite.groupcollide(bombs, shield, True, False):  # 盾と衝突した爆弾リスト
             exps.add(Explosion(bomb, 50))  # 壁に当たったら爆発する
             score.value += 1
+            for bmb in bombs: 
+                if bmb.state!="inactive":
+                    bird.change_img(8, screen)  # こうかとん悲しみエフェクト
+                    score.update(screen)
+                    pg.display.update()
+                    time.sleep(2)
+                    return
 
         bird.update(key_lst, screen)
         beams.update()
