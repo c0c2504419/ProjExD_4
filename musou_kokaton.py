@@ -241,6 +241,22 @@ class Score:
         self.image = self.font.render(f"Score: {self.value}", 0, self.color)
         screen.blit(self.image, self.rect)
 
+class Gravity(pg.sprite.Sprite):
+    def __init__(self, life=400):
+        super().__init__()
+        self.life = life
+
+        # 画面全体を覆う半透明の黒矩形
+        self.image = pg.Surface((WIDTH, HEIGHT))
+        self.image.fill((0, 0, 0))
+        self.image.set_alpha(120)  # 半透明
+
+        self.rect = self.image.get_rect()
+
+    def update(self):
+        self.life -= 1
+        if self.life < 0:
+            self.kill()
 
 def main():
     pg.display.set_caption("真！こうかとん無双")
@@ -253,7 +269,8 @@ def main():
     beams = pg.sprite.Group()
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
-
+    grvs = pg.sprite.Group()
+    
     tmr = 0
     clock = pg.time.Clock()
     while True:
@@ -273,6 +290,28 @@ def main():
                 # 敵機が停止状態に入ったら，intervalに応じて爆弾投下
                 bombs.add(Bomb(emy, bird))
 
+        
+        if event.type == pg.KEYDOWN and event.key == pg.K_RSHIFT:
+            if score.value > 20 and len(grvs) == 0:
+                grvs.add(Gravity(life=400))
+                score.value -= 20
+        
+        if len(grvs) > 0:
+            for gravity in grvs:
+                # 爆弾を消す
+                hit_bombs = pg.sprite.spritecollide(gravity, bombs, True)
+                for bomb in hit_bombs:
+                    exps.add(Explosion(bomb, 50))
+                    score.value += 1
+
+                # 敵機を消す
+                hit_emys = pg.sprite.spritecollide(gravity, emys, True)
+                for emy in hit_emys:
+                    exps.add(Explosion(emy, 100))
+                    score.value += 10
+
+
+
         for emy in pg.sprite.groupcollide(emys, beams, True, True).keys():  # ビームと衝突した敵機リスト
             exps.add(Explosion(emy, 100))  # 爆発エフェクト
             score.value += 10  # 10点アップ
@@ -288,7 +327,7 @@ def main():
             pg.display.update()
             time.sleep(2)
             return
-
+        
         bird.update(key_lst, screen)
         beams.update()
         beams.draw(screen)
@@ -298,8 +337,11 @@ def main():
         bombs.draw(screen)
         exps.update()
         exps.draw(screen)
+        grvs.update()
+        grvs.draw(screen)
         score.update(screen)
-        pg.display.update()
+        pg.display.update()  
+
         tmr += 1
         clock.tick(50)
 
