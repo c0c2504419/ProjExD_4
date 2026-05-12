@@ -243,10 +243,12 @@ class Score:
         screen.blit(self.image, self.rect)
 
 class EMP(pg.sprite.Sprite):
-
+    """
+    敵機、爆弾を無効化する電磁パルスに関わるクラス
+    """
     def __init__(self, emy:"Enemy", obj: "Bomb", screen):
         """
-        黄色い矩形を作る?
+        黄色い矩形を作る
         """
         super().__init__()
         self.image = pg.Surface((WIDTH, HEIGHT))
@@ -263,10 +265,10 @@ class EMP(pg.sprite.Sprite):
         pg.display.update()
         for enem in emy:
             enem.image = pg.transform.laplacian(enem.image)#見た目を変える
-            enem.interval = math.inf
+            enem.interval = math.inf#爆弾投下のインターバルを無限にする
         for bmb in obj:
             bmb.speed = bmb.speed/2 #爆弾を遅くする
-            bmb.state = "inactive"
+            bmb.state = "inactive"#爆弾を無効化するかの判断基準のための定義
 
 
 def main():
