@@ -67,11 +67,14 @@ class Bird(pg.sprite.Sprite):
             (0, +1): pg.transform.rotozoom(img, -90, 0.9),  # 下
             (+1, +1): pg.transform.rotozoom(img, -45, 0.9),  # 右下
         }
+        
         self.dire = (+1, 0)
         self.image = self.imgs[self.dire]
         self.rect = self.image.get_rect()
         self.rect.center = xy
         self.speed = 10
+        self.state = "normal"
+        self.hyper_life = 0
 
     def change_img(self, num: int, screen: pg.Surface):
         """
@@ -99,6 +102,13 @@ class Bird(pg.sprite.Sprite):
         if not (sum_mv[0] == 0 and sum_mv[1] == 0):
             self.dire = tuple(sum_mv)
             self.image = self.imgs[self.dire]
+        if self.state == "hyper": # 無敵状態
+            self.image = pg.transform.laplacian(self.image)
+            self.image.set_colorkey((0, 0, 0))
+            self.hyper_life -= 1
+            if self.hyper_life < 0:
+                self.state = "normal"
+
         screen.blit(self.image, self.rect)
 
 
@@ -335,6 +345,12 @@ def main():
                 if score.value >= 50 and len(shield) == 0:  # スコア50以上 かつ 防御壁が他に存在しない
                     score.value -= 50  # 発動時スコア50消費
                     shield.add(Shield(bird, 400))  # 発動時間400フレーム
+
+            # ↓Shiftキー押下かつスコア１００以上の時、発動
+            if (event.type == pg.KEYDOWN and event.key in (pg.K_LSHIFT, pg.K_RSHIFT) and score.value >= 100):
+                bird.state = "hyper"
+                bird.hyper_life += 500 # 500フレーム(10秒間)無敵
+                score.value -= 100 # スコア100消費
         screen.blit(bg_img, [0, 0])
 
         if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
@@ -389,7 +405,11 @@ def main():
                 return
             
         for bomb in pg.sprite.spritecollide(bird, bombs, True):  # こうかとんと衝突した爆弾リスト
-            bird.change_img(8, screen)  # こうかとん悲しみエフェクト
+            if bird.state == "hyper": # 無敵状態
+                exps.add(Explosion(bomb, 50))
+                score.value += 1
+                continue
+            bird.change_img(8, screen)  # 通常状態
             score.update(screen)
             pg.display.update()
             time.sleep(2)
